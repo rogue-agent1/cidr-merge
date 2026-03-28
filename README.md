@@ -1,11 +1,13 @@
-# cidr-merge
+# cidr_merge
 
-Merge and optimize CIDR ranges.
-
-Zero dependencies. Python 3.8+.
+CIDR range merger — combine overlapping IP ranges
 
 ## Usage
 
 ```bash
 python3 cidr_merge.py --help
 ```
+
+## License
+
+MIT
