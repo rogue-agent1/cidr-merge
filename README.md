@@ -1,6 +1,6 @@
-# cidr_merge
+# cidr-merge
 
-CIDR range merger — combine overlapping IP ranges
+CIDR range merger and optimizer
 
 ## Usage
 
@@ -8,6 +8,7 @@ CIDR range merger — combine overlapping IP ranges
 python3 cidr_merge.py --help
 ```
 
-## License
+## Features
 
-MIT
+- Zero dependencies (Python 3.8+)
+- Single file implementation

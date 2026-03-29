@@ -1,25 +1,34 @@
 #!/usr/bin/env python3
-"""CIDR merger — combine and simplify overlapping IP ranges."""
-import sys, struct, socket
-def ip2int(ip): return struct.unpack("!I", socket.inet_aton(ip))[0]
-def int2ip(n): return socket.inet_ntoa(struct.pack("!I", n))
-def parse_cidr(s):
-    ip, prefix = s.split("/"); prefix = int(prefix)
-    start = ip2int(ip) & ((0xFFFFFFFF << (32-prefix)) & 0xFFFFFFFF)
-    end = start | (~(0xFFFFFFFF << (32-prefix)) & 0xFFFFFFFF)
-    return start, end, prefix
-def merge(cidrs):
-    ranges = sorted(parse_cidr(c)[:2] for c in cidrs)
-    merged = [ranges[0]]
-    for s, e in ranges[1:]:
-        if s <= merged[-1][1] + 1: merged[-1] = (merged[-1][0], max(merged[-1][1], e))
-        else: merged.append((s, e))
-    result = []
-    for s, e in merged:
-        bits = (e - s + 1).bit_length() - 1
-        prefix = 32 - bits; result.append(f"{int2ip(s)}/{prefix}")
-    return result
-def cli():
-    if len(sys.argv) < 2: print("Usage: cidr_merge CIDR1 CIDR2 ..."); sys.exit(1)
-    for r in merge(sys.argv[1:]): print(f"  {r}")
-if __name__ == "__main__": cli()
+"""cidr_merge - Merge and optimize CIDR ranges."""
+import sys, argparse, json, ipaddress
+
+def merge_cidrs(cidrs):
+    nets = [ipaddress.ip_network(c, strict=False) for c in cidrs]
+    return [str(n) for n in ipaddress.collapse_addresses(nets)]
+
+def expand_cidr(cidr, max_ips=256):
+    net = ipaddress.ip_network(cidr, strict=False)
+    hosts = list(net.hosts())[:max_ips]
+    return [str(h) for h in hosts]
+
+def main():
+    p = argparse.ArgumentParser(description="CIDR merger")
+    sub = p.add_subparsers(dest="cmd")
+    m = sub.add_parser("merge"); m.add_argument("cidrs", nargs="+")
+    e = sub.add_parser("expand"); e.add_argument("cidr"); e.add_argument("--max", type=int, default=256)
+    o = sub.add_parser("overlap"); o.add_argument("a"); o.add_argument("b")
+    args = p.parse_args()
+    if args.cmd == "merge":
+        merged = merge_cidrs(args.cidrs)
+        print(json.dumps({"input": len(args.cidrs), "merged": len(merged), "ranges": merged}))
+    elif args.cmd == "expand":
+        ips = expand_cidr(args.cidr, args.max)
+        print(json.dumps({"cidr": args.cidr, "count": len(ips), "ips": ips}))
+    elif args.cmd == "overlap":
+        a = ipaddress.ip_network(args.a, strict=False)
+        b = ipaddress.ip_network(args.b, strict=False)
+        overlaps = a.overlaps(b)
+        print(json.dumps({"a": args.a, "b": args.b, "overlaps": overlaps, "a_subnet_of_b": a.subnet_of(b), "b_subnet_of_a": b.subnet_of(a)}))
+    else: p.print_help()
+
+if __name__ == "__main__": main()
